@@ -1,32 +1,36 @@
-var productID = ""
-var vendorID = ""
+var productID = "9204"
+var vendorID = "1B4F"
 
-var philipsPanelsArray = [12, 12, 12];
+var philipsPanelsArray = ['192.168.5.22'];
 
 var deviceInfo = getDeviceInfoFor(vendorID, productID)
 if (deviceInfo == null) {
   SignStixDebug.error("Cannot get permission")
 }
-SignStixSerial.requestPermission(deviceInfo, "permissionGranted")
+SignStixSerial.requestPermission(deviceInfo.devicePath, "permissionGranted");
 
 
 function getDeviceInfoFor(vendorId, productId) {
-    var deviceInfo = SignStixSerial.getDevicesInfo();
-    var device = JSON.parse(deviceInfo);
-    var device = null;
-    for(var i = 0; i < device.length; i ++) {
-      var device = device[i]
-      if (device.vendorId == vendorID && device.productID == productID) {
-        return device;
-      } else {
-      SignStixDebug.error("Error gaining info from the device")
-    }
-    return device;
-  }
+ var devicesInfo = SignStixSerial.getDevicesInfo();
+ var devices = JSON.parse(devicesInfo);
+ SignStixDebug.info(devicesInfo);
+ SignStixDebug.info(SignStixStats.getCurrentSignInfo);
+ var device = null;
+ var i;
+ for (i = 0; i < devices.length; i++) {
+   var device = devices[i]
+   if (device.vendorId == vendorId && device.productId == productId) {
+     return device;
+     SignStixDebug.info("received device info now going to ask for permission");
+   } else {
+     SignStixDebug.error("Error gaining device info", vendorId && productId);
+   }
+ }
+  return null;
 }
 
 function permissionGranted(devicePath, success) {
-  SignStixDebug.info("permission granted");
+  SignStixDebug.info("permission granted") + success;
   var driverName = "usb";
   var baudRate = 9600;
   var stopBits = 1;
@@ -35,27 +39,34 @@ function permissionGranted(devicePath, success) {
   var connectionId = SignStixSerial.connect(devicePath, driverName, baudRate, stopBits, dataBits, parity);
   var currentSign = SignStixStats.getCurrentSignInfo();
   SignStixSerial.startReading(connectionId, "touchWasTapped")
-  if (currentSign == "blankScreen") {
-    powerDown();
-  }
 }
 
 function touchWasTapped(connectionId, hexData) {
-  var tapped = dataRead(hexdata);
-  if (tapped == (20)) {
-    powerDown();
+  var tapped = dataRead(hexData);
+  if (tapped == 20) {
+    SignStixEngine.jumpToSignInSequence("PhilipsPowerOff");
+    powerToggle();
   }
 }
 
-function powerDown() {
+function powerToggle() {
+  SignStixDebug.info("power toggle");
   var currentSign = SignStixStats.getCurrentSignInfo;
   if (currentSign == "powerOffSign") {
     for (var i in philipsPanelsArray) {
-      SignStixPhilips.sendCommand("on off command", philipsPanelsArray[i]);
-    }
-  } else if (currentSign == "powerOnSign") {
-      SignStixPhilips.sendCommand("on off command", philipsPanelsArray[i]);
-    }
+       SignStixPhilips.sendCommand("on off command", philipsPanelsArray[i]);
+       // SignStixDebug.info("now sending command to power off");
+       // SignStixPhilips.sendCommand('06010018011E', '192.168.5.22'); //power off the screen
+     }
+   }
+  if (currentSign != "powerOffSign") {
+    SignStixDebug.info("now sending command to power on");
+    SignStixPhilips.sendCommand('06010018021E', '192.168.5.22');
+  }
+  //
+  // } else if (currentSign == "powerOnSign") {
+  //     SignStixPhilips.sendCommand("on off command", philipsPanelsArray[i]);
+  //   }
   }
 
 
